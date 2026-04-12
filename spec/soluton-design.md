@@ -70,7 +70,7 @@ Components:
 - Memory Store
   - Short-term conversational buffer and optional persistent facts store.
 - Reminders Store (persistent)
-  - SQLite (file) for MVP, optional Redis/Postgres for scale.
+  - PostgreSQL for MVP (recommended), optional Redis for scale.
 - Background Scheduler / Worker
   - Responsible for reliable reminder deliveries.
 - Optional Job Queue (BullMQ/RSMQ) and Redis for production schedules.
@@ -138,7 +138,7 @@ Config / Env vars
 - OLLAMA_MODEL (default gemma4:e4b)
 - OLLAMA_TEMPERATURE (0.0..1.0, default 0.0)
 - OLLAMA_MAX_TOKENS (default 512)
-- DATABASE_URL (sqlite://./data/db.sqlite or postgres://...)
+- DATABASE_URL (postgres://user:pass@host:5432/dbname). For local dev: postgres://localhost:5432/<db>
 - REDIS_URL (for queue/scheduler)
 - SCHEDULER_TYPE = inproc | bullmq | cron (default inproc)
 - NODE_ENV
@@ -181,13 +181,13 @@ Memory Design
   - In-memory ring buffer per chat (last N messages, e.g., 20) used for context windows.
   - TTL: expires after inactivity (e.g., 30 minutes).
 - Persistent memory:
-  - SQLite for MVP (file-backed) storing facts/notes and reminders.
+  - PostgreSQL for MVP (persistent) storing facts/notes and reminders.
   - Redis for high-throughput retrieval or if using embeddings and similarity search.
 - Eviction / TTL:
   - Session buffers evicted by LRU or TTL.
   - Persistent memory only evicted by retention policy or manual deletion.
 - Embeddings (optional):
-  - If implementing semantic retrieval, store embeddings (via local embedder or external) and use vector store (Redis / sqlite + faiss) for retrieval.
+  - If implementing semantic retrieval, store embeddings and use a vector store (Redis or Postgres with pgvector + faiss) for retrieval.
 
 Tools Design
 ------------
@@ -229,7 +229,7 @@ Dockerization
 - Containerize the Node app.
 - Optionally include redis/docker-compose for local development.
 - Volumes:
-  - sqlite file stored in a host-mounted volume (e.g., ./data:/app/data)
+  - Postgres data stored in a named volume (e.g., postgres_data:/var/lib/postgresql/data).
 - Ports:
   - Expose PORT (3000) for webhook/poller health and webhook receiver.
 - Multi-stage Dockerfile outline:
@@ -279,7 +279,7 @@ Files to be created (implementation phase)
 - src/bot/core.ts (command router)
 - src/llm/ollamaAdapter.ts (HTTP client + prompt templates)
 - src/orchestrator/langchain.ts OR src/orchestrator/langgraph.ts
-- src/reminders/store.ts (sqlite/orm access)
+- src/reminders/store.ts (postgres/orm access)
 - src/scheduler/inproc.ts and src/scheduler/bullmq.ts
 - src/memory/* (session buffer, persistent memory adapter)
 - src/tools/setReminder.ts, summariseReminders.ts, timeTool.ts
@@ -317,7 +317,7 @@ Open Questions & Tradeoffs
 --------------------------
 - LangChain vs LangGraph: both can orchestrate tools; pick based on team familiarity. LangChain has more mature JS ecosystem; LangGraph may offer a different graph-based orchestration. Decision deferred to implementation.
 - Scheduler: in-process is simplest but less reliable. For production, prefer BullMQ + Redis.
-- Persistence: SQLite OK for MVP; Postgres/Redis for scale.
+- Persistence: Postgres recommended for MVP; Redis for caching/queues and scale.
 - Webhook vs Polling: Polling easier for containers without public HTTPS; webhooks are preferable in production behind an ingress with TLS.
 
 Appendix: Acceptance Test Examples
