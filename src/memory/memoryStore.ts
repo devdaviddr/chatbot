@@ -1,6 +1,5 @@
 import { randomUUID } from 'crypto';
-import type { PrismaClient } from '@prisma/client';
-import { prisma } from '../db/prisma';
+import { prisma as defaultPrisma } from '../db/prisma';
 
 export interface MemoryEntry {
   id: string;
@@ -15,12 +14,12 @@ export interface MemoryEntry {
 export class MemoryStore {
   private buffer: Map<string, MemoryEntry[]>;
   private bufferLimit: number;
-  private prisma: PrismaClient;
+  private prisma: any;
 
-  constructor(options?: { bufferLimit?: number; prisma?: PrismaClient }) {
+  constructor(options?: { bufferLimit?: number; prisma?: any }) {
     this.buffer = new Map();
     this.bufferLimit = options?.bufferLimit ?? 100;
-    this.prisma = options?.prisma ?? prisma;
+    this.prisma = options?.prisma ?? defaultPrisma;
   }
 
   addMessage(userId: string, role: string, content: string, expiresAt?: Date | null): MemoryEntry {
@@ -44,12 +43,12 @@ export class MemoryStore {
 
   async getRecent(userId: string, limit = 20): Promise<MemoryEntry[]> {
     const now = new Date();
-    const bufferEntries = (this.buffer.get(userId) || []).filter(e => !e.expiresAt || e.expiresAt > now);
+    const bufferEntries = (this.buffer.get(userId) || []).filter((e: any) => !e.expiresAt || e.expiresAt > now);
     const result = bufferEntries.slice(0, limit);
     if (result.length >= limit) return result.slice(0, limit);
 
     const remaining = limit - result.length;
-    const excludedIds = bufferEntries.map(e => e.id);
+    const excludedIds = bufferEntries.map((e: any) => e.id);
     const where: any = { userId };
     if (excludedIds.length > 0) where.id = { notIn: excludedIds };
 
@@ -64,9 +63,9 @@ export class MemoryStore {
       take: remaining,
     });
 
-    const dbFiltered: MemoryEntry[] = dbRows
-      .filter(e => !e.expiresAt || new Date(e.expiresAt) > now)
-      .map(e => ({
+    const dbFiltered: MemoryEntry[] = (dbRows || [])
+      .filter((e: any) => !e.expiresAt || new Date(e.expiresAt) > now)
+      .map((e: any) => ({
         id: e.id,
         userId: e.userId,
         role: e.role,
