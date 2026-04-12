@@ -53,6 +53,11 @@ export class MemoryStore {
     const where: any = { userId };
     if (excludedIds.length > 0) where.id = { notIn: excludedIds };
 
+    // If no DATABASE_URL is configured (e.g., in unit tests), skip DB lookup and return buffer-only results
+    if (!process.env.DATABASE_URL) {
+      return result;
+    }
+
     const dbRows = await this.prisma.memoryEntry.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -75,6 +80,10 @@ export class MemoryStore {
   }
 
   async persistMemoryEntry(entry: MemoryEntry) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL not set; cannot persist entry');
+    }
+
     return this.prisma.memoryEntry.create({
       data: {
         id: entry.id,
@@ -89,6 +98,7 @@ export class MemoryStore {
   }
 
   async listReminders(userId: string) {
+    if (!process.env.DATABASE_URL) return [];
     return this.prisma.reminder.findMany({ where: { userId }, orderBy: { dueAt: 'asc' } });
   }
 }
