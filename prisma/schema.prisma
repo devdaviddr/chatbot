@@ -1,0 +1,32 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model MemoryEntry {
+  id        String   @id @default(uuid())
+  userId    String
+  content   String
+  role      String
+  embedding Json?
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
+}
+
+model Reminder {
+  id         String   @id @default(uuid())
+  userId     String
+  chatId     String
+  text       String
+  dueAt      DateTime
+  timezone   String?
+  recurrence String?
+  createdAt  DateTime @default(now())
+  delivered  Boolean  @default(false)
+  deliveredAt DateTime?
+  metadata   Json?
+}
